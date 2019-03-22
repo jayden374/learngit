@@ -1,0 +1,258 @@
+# Gerris Flow Solver 2D version 1.3.2 (131206-155120)
+4 3 GfsAxi GfsBox GfsGEdge { rootlevel = 2 x = 0.125 y = 0.5 version = 131206 } {
+  GfsGlobal { 
+    /* User defined parameters */
+    #define LEVEL 9 
+             /* finest level*/
+    #define GRAVITY 980          /* gravity */
+
+    
+
+    #define R_en_chamber   15e-4    /* radius of entrance chamber */
+    #define R_ex_chamber   15e-4    /* radius of exit chamber     */
+    #define len_en_chamber 30e-4    /* length of entrance chamber */
+    #define len_ex_chamber 30e-4    /* length of entrance chamber */
+    #define R_en_channel    4e-4    /* radius of entry of channel */
+    #define R_exit_channel  4e-4    /* radius of exit of channe   */
+    #define len_channel    270e-4    /* length of channel          */
+    #define R_cell          8e-4    /* radius of cell             */
+    #define R_nucl          6e-4       /* radius of nucleus          */
+
+        
+    #define MU_B           1.e-2    /* dynamic viscosity of blood       */
+    #define MU_C           1.e-2    /* dynamic viscosity of cytoplasm   */
+    #define MU_N          10.e-2    /* dynamic viscosity of necleus     */
+    #define RHO_B            1.0    /* blood density                    */
+    #define RHO_C            1.0    /* cytoplasm density                */
+    #define RHO_N            1.0    /* necleus density                  */
+    #define sigma1          50.0    /* surface tension of cell          */
+    #define sigma2         200.0    /* surface tension of necleus       */
+    #define ca               160    /* contact angle                    */
+    #define Vel              3.0    /* flow velocity                    */
+    #define box_size       len_en_chamber+len_ex_chamber+len_channel
+
+    /* ************** */
+    /* Fixed input (warning: modification in the below section requires
+     *  deep understaning of Gerris+) 
+     */
+    #define var(T,min,max) (CLAMP(T,0,1)*(max - min) + min)
+    #define rho(T) var(T, RHO_B/RHO_C, 1.)
+    #define mu(T)  var(T, MU_B/MU_C, 1.)
+    
+// initial cell shape
+    static double cell_domain (double x, double y) {
+      double r,L,xc,yc;  
+      xc =len_en_chamber/2;yc=0;
+      r = (x-xc)*(x-xc)+(y-yc)*(y-yc);                
+      if ( r< R_cell*R_cell)
+        return 1.;      
+      else
+        return -1;
+     }
+// initial nucleus shape
+    static double nucleus (double x, double y) {
+      double r,L,xc,yc;  
+      xc =len_en_chamber/2;yc=0;
+      r = (x-xc)*(x-xc)+(y-yc)*(y-yc);                
+      if ( r< R_nucl*R_nucl)
+        return 1.;      
+      else
+        return -1;
+     }     
+// define solid geometry of microfilter
+   static double microfilter_solid (double x, double y) {   
+     double a=len_en_chamber;
+     double c = len_en_chamber + len_channel/9;
+     double d = len_en_chamber + (len_channel*2)/9;
+     double e = len_en_chamber + (len_channel)/3;
+     double f = len_en_chamber + (len_channel*4)/9;
+     double g = len_en_chamber + (len_channel*5)/9;
+     double h = len_en_chamber + (len_channel*2)/3;
+     double i = len_en_chamber + (len_channel*7)/9;
+     double j = len_en_chamber + (len_channel*8)/9;
+     double b = len_en_chamber+len_channel;
+    if (x < a) {
+      if (y< R_en_chamber)
+        return 1.;
+      else
+        return -1;    
+    }
+    else if (x < c) {
+      if (y< (-x)/10 + 9e-4 )
+        return 1.;
+      else
+        return -1;
+      }        
+      else if (x < d){
+           if (y <  15e-4)
+        return 1.;
+      else
+        return -1.;     
+     }
+      else if (x < e){
+           if (y < (-x)/10 + 15e-4)
+        return 1.;
+      else
+        return -1.;
+     }
+      else if (x < f){
+           if (y < 15e-4)
+        return 1.;
+      else 
+        return -1.;
+     }
+      else if (x < g){
+           if (y < (-x)/10 + 21e-4)
+        return 1.;
+      else
+        return -1.;
+     }
+      else if (x < h){
+           if (y < 15e-4)
+        return 1.;
+      else 
+        return -1.;
+     }
+      else if (x < i){
+           if (y < (-x)/10 + 27e-4)
+        return 1.;
+      else
+        return -1.;
+     }
+      else if (x < j){
+           if (y < 15e-4)
+        return 1.;
+      else 
+        return -1.;
+     }
+      else if (x < b){
+           if (y < (-x)/10 + 33e-4)
+        return 1.;
+      else
+        return -1.;
+     }
+    else {
+      if (y< R_ex_chamber)
+        return 1.;
+      else
+        return -1;       
+    }
+     
+   }  
+//end solid  
+  
+// define viscosity 
+	static double viscosity (double X) {              
+      	if( X > 1.)
+        	return (X-1)*(MU_N - MU_C)+ MU_C;      
+      	else
+         	return  X*(MU_C-MU_B)+MU_B;
+     	}  
+  
+// define flag
+    static double convert (double T, double N) {             
+      if ( N > 0.00001)
+        return N+1;      
+      else
+        return T;
+     }   
+  }
+  GfsTime { i = 0 t = 0 end = 0.0025 }
+  GfsRefine 3
+  GfsRefineSolid LEVEL
+  GfsRefineSurface {return LEVEL;} ( cell_domain(x, y) ) {}
+  GfsRefineSurface {return LEVEL;} ( nucleus(x, y) ) {}
+  GfsSolid { istep = 1073741823 } ( microfilter_solid (x,y) ) {}
+  GfsVariableTracerVOFHeight { istep = 1073741823 } T {
+  cfl      = 0.5
+  gradient = gfs_center_van_leer_gradient
+  flux     = gfs_face_advection_flux
+  average  = 0
+  scheme   = godunov
+}
+  GfsVariableFiltered { istep = 1 } T1 T 3
+  GfsInitFraction { } T ( cell_domain(x, y) ) {}
+  GfsVariableTracerVOFHeight { istep = 1073741823 } Nuc {
+  cfl      = 0.5
+  gradient = gfs_center_van_leer_gradient
+  flux     = gfs_face_advection_flux
+  average  = 0
+  scheme   = godunov
+}
+  GfsInitFraction { } Nuc ( nucleus(x, y) ) {}
+  GfsInit { } {
+  P = 0.
+}
+  GfsVariableCurvature { istep = 1 } K T Kmax
+  GfsSourceTension { istep = 1 } T sigma1 K
+  GfsVariableCurvature { istep = 1 } K1 Nuc Kmax1
+  GfsSourceTension { istep = 1 } Nuc sigma2 K1
+  GfsVariable { istep = 1 } flag
+  GfsInit { istep = 1 } {
+  flag = convert(T,Nuc)
+}
+  GfsSourceViscosity { istep = 1 } viscosity(flag) {
+  tolerance = 1e-06
+  nrelax    = 4
+  erelax    = 1
+  minlevel  = 0
+  nitermax  = 100
+  nitermin  = 1
+  weighted  = 0
+  beta      = 1
+}
+  GfsAdaptFunction { istart = 1 istep = 1 } { minlevel = 0 maxlevel = LEVEL cmax = 0.1 cfactor = 2 } (T > 0 && T < 1 )* dL*Kmax
+  GfsAdaptVorticity { istep = 1 } { minlevel = 0 maxlevel = LEVEL - 1 cmax = 0.1 }
+  GfsAdaptGradient { istep = 1 } { minlevel = 0 maxlevel = LEVEL cmax = 0.01 } T
+  GfsAdaptGradient { istep = 1 } { minlevel = 0 maxlevel = LEVEL cmax = 0.01 } Nuc
+  GfsAdaptGradient { istep = 1 } { minlevel = 0 maxlevel = LEVEL cmax = 2 cfactor = 2 } sqrt ( U*U +V*V)
+  GfsEventBalance { istep = 3 } 0.1
+  GfsOutputBalance { istep = 3 } balance
+  GfsOutputSimulation { step = 2e-06 } tecplot-cell-2D-%ld.dat { variables = U,V,P,T,Nuc,flag solid = 0 format = Tecplot }
+  GfsOutputScalarStats { istep = 10 } pressure_his.dat { v =  (x > 0. && x <len_en_chamber/2 && T==0.?P:GFS_NODATA) }
+  GfsOutputScalarSum { istep = 3 } volume { v =  T }
+  GfsOutputTiming { istep = 20 } stdout
+  SurfaceAngleBc T ca
+  SurfaceAngleBc Nuc ca
+  GfsPhysicalParams { g = 1 L = 0.0330  alpha = 1/rho(T1)/RHO_C }
+  GfsAdvectionParams {
+  cfl      = 0.8
+  gradient = gfs_center_gradient
+  flux     = gfs_face_velocity_advection_flux
+  average  = 1
+  scheme   = godunov
+}
+  GfsApproxProjectionParams {
+  tolerance = 1e-05
+  nrelax    = 4
+  erelax    = 1
+  minlevel  = 0
+  nitermax  = 100
+  nitermin  = 1
+  weighted  = 0
+  beta      = 1
+  omega     = 1.2
+}
+  GfsProjectionParams {
+  tolerance = 1e-05
+  nrelax    = 4
+  erelax    = 1
+  minlevel  = 0
+  nitermax  = 100
+  nitermin  = 1
+  weighted  = 0
+  beta      = 1
+  omega     = 1.2
+}
+}
+GfsBox { id = 1 pid = 3 size = 2 x = 0.125 y = 0.125 z = 0 left = GfsBoundary {
+GfsBcDirichlet T 0.
+GfsBcDirichlet U Vel
+GfsBcDirichlet V 0
+} bottom = GfsBoundary }
+GfsBox { id = 2 pid = 1 size = 2 x = 0.375 y = 0.125 z = 0 bottom = GfsBoundary }
+GfsBox { id = 3 pid = 0 size = 2 x = 0.625 y = 0.125 z = 0 bottom = GfsBoundary }
+GfsBox { id = 4 pid = 2 size = 2 x = 0.875 y = 0.125 z = 0 right = GfsBoundaryOutflow bottom = GfsBoundary }
+1 2 right
+3 2 left
+3 4 right
